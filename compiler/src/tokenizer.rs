@@ -1,11 +1,14 @@
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     Num(usize),
+    Ident(String),
 
     Plus,
     Minus,
     Asterisk,
     Slash,
+
+    Assign,
 
     Eq,
     NotEq,
@@ -16,6 +19,8 @@ pub enum Token {
 
     LParen,
     RParen,
+
+    Semicolon,
 }
 
 pub fn tokenize(s: &str) -> Vec<Token> {
@@ -44,7 +49,7 @@ pub fn tokenize(s: &str) -> Vec<Token> {
                     s.next();
                     tokens.push(Token::Eq);
                 } else {
-                    unimplemented!();
+                    tokens.push(Token::Assign);
                 }
             }
             '!' => {
@@ -74,6 +79,15 @@ pub fn tokenize(s: &str) -> Vec<Token> {
             '(' => tokens.push(Token::LParen),
             ')' => tokens.push(Token::RParen),
             c if c.is_whitespace() => {}
+            ';' => tokens.push(Token::Semicolon),
+            c if c.is_ascii_alphabetic() => {
+                let mut ident = String::from(c);
+                while let Some(&c) = s.peek() && c.is_ascii_alphabetic() {
+                    s.next();
+                    ident.push(c);
+                }
+                tokens.push(Token::Ident(ident));
+            }
             _ => panic!("unexpected character: {}", c),
         }
     }
@@ -179,6 +193,19 @@ mod tests {
                 Token::Num(1),
                 Token::LessThanOrEq,
                 Token::Num(2),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_ident() {
+        let tokens = tokenize("a + b");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Ident("a".to_string()),
+                Token::Plus,
+                Token::Ident("b".to_string()),
             ]
         );
     }

@@ -2,20 +2,24 @@ use crate::tokenizer::Token;
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tree {
     BinOp(Op, Box<Tree>, Box<Tree>),
     Integer(isize),
+    Var(String),
+    Assign(Box<Tree>, Box<Tree>),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Op {
     Add,
     Sub,
     Mul,
     Div,
+
     Eq,
     NotEq,
+
     GreaterThan,
     LessThan,
     GreaterThanOrEq,
@@ -33,12 +37,42 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Tree {
-        self.equality()
+    pub fn parse(&mut self) -> Vec<Tree> {
+        let mut trees = Vec::new();
+        while let Some(_) = self.tokens.peek() {
+            let stmt = self.statement();
+            trees.push(stmt);
+        }
+
+        trees
+    }
+
+    fn statement(&mut self) -> Tree {
+        let tree = self.expr();
+
+        match self.tokens.peek() {
+            Some(Token::Semicolon) => {
+                self.tokens.next();
+            }
+            other => panic!("Unexpected Token: Expected ; but found {:?}", other),
+        }
+
+        tree
     }
 
     fn expr(&mut self) -> Tree {
-        self.equality()
+        self.assign()
+    }
+
+    fn assign(&mut self) -> Tree {
+        let lhs = self.equality();
+        if let Some(Token::Assign) = self.tokens.peek() {
+            self.tokens.next();
+            let rhs = self.assign();
+            Tree::Assign(Box::new(lhs), Box::new(rhs))
+        } else {
+            return lhs;
+        }
     }
 
     fn equality(&mut self) -> Tree {
@@ -152,6 +186,7 @@ impl Parser {
 
     fn primary(&mut self) -> Tree {
         match self.tokens.next() {
+            Some(Token::Ident(s)) => Tree::Var(s),
             Some(Token::Num(n)) => Tree::Integer(n as isize),
             Some(Token::LParen) => {
                 let tree = self.expr();
@@ -160,7 +195,7 @@ impl Parser {
                 }
                 tree
             }
-            _ => panic!("unexpected token"),
+            other => panic!("unexpected token: {:?}", other),
         }
     }
 }
@@ -173,7 +208,7 @@ mod tests {
     #[test]
     fn parse_precedence() {
         let mut parser = Parser::new(tokenize("1 + 2 * 3"));
-        let tree = parser.parse();
+        let tree = parser.expr();
         assert_eq!(
             tree,
             Tree::BinOp(
@@ -191,7 +226,7 @@ mod tests {
     #[test]
     fn parse_left_associative_sub() {
         let mut parser = Parser::new(tokenize("1 - 2 - 3"));
-        let tree = parser.parse();
+        let tree = parser.expr();
         assert_eq!(
             tree,
             Tree::BinOp(
@@ -209,7 +244,7 @@ mod tests {
     #[test]
     fn parse_unary_minus_paren() {
         let mut parser = Parser::new(tokenize("-(1 + 2)"));
-        let tree = parser.parse();
+        let tree = parser.expr();
         assert_eq!(
             tree,
             Tree::BinOp(
@@ -227,7 +262,7 @@ mod tests {
     #[test]
     fn parse_paren_precedence() {
         let mut parser = Parser::new(tokenize("(1 + 2) * 3"));
-        let tree = parser.parse();
+        let tree = parser.expr();
         assert_eq!(
             tree,
             Tree::BinOp(
@@ -245,7 +280,7 @@ mod tests {
     #[test]
     fn parse_relational_precedence() {
         let mut parser = Parser::new(tokenize("1 + 2 > 3"));
-        let tree = parser.parse();
+        let tree = parser.expr();
         assert_eq!(
             tree,
             Tree::BinOp(
@@ -263,7 +298,7 @@ mod tests {
     #[test]
     fn parse_equality_precedence() {
         let mut parser = Parser::new(tokenize("1 + 2 == 3"));
-        let tree = parser.parse();
+        let tree = parser.expr();
         assert_eq!(
             tree,
             Tree::BinOp(
@@ -282,6 +317,6 @@ mod tests {
     #[should_panic(expected = "Expected )")]
     fn parse_missing_rparen_panics() {
         let mut parser = Parser::new(tokenize("(1 + 2"));
-        parser.parse();
+        parser.expr();
     }
 }
