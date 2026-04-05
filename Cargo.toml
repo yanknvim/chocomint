@@ -1,0 +1,5 @@
+[workspace]
+resovler = "3"
+members = ["compiler","xtask"]
+default-members = ["compiler"]
+
