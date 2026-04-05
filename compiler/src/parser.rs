@@ -14,6 +14,12 @@ pub enum Op {
     Sub,
     Mul,
     Div,
+    Eq,
+    NotEq,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEq,
+    LessThanOrEq,
 }
 
 pub struct Parser {
@@ -28,10 +34,66 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Tree {
-        self.expr()
+        self.equality()
     }
 
     fn expr(&mut self) -> Tree {
+        self.equality()
+    }
+
+    fn equality(&mut self) -> Tree {
+        let mut tree = self.relational();
+        while let Some(token) = self.tokens.peek() {
+            match token {
+                Token::Eq => {
+                    self.tokens.next();
+                    let rhs = self.relational();
+                    tree = Tree::BinOp(Op::Eq, Box::new(tree), Box::new(rhs));
+                }
+                Token::NotEq => {
+                    self.tokens.next();
+                    let rhs = self.relational();
+                    tree = Tree::BinOp(Op::NotEq, Box::new(tree), Box::new(rhs));
+                }
+                _ => break,
+            }
+        }
+
+        tree
+    }
+
+    fn relational(&mut self) -> Tree {
+        let mut tree = self.add();
+        while let Some(token) = self.tokens.peek() {
+            match token {
+                Token::GreaterThan => {
+                    self.tokens.next();
+                    let rhs = self.add();
+                    tree = Tree::BinOp(Op::GreaterThan, Box::new(tree), Box::new(rhs));
+                }
+                Token::GreaterThanOrEq => {
+                    self.tokens.next();
+                    let rhs = self.add();
+                    tree = Tree::BinOp(Op::GreaterThanOrEq, Box::new(tree), Box::new(rhs));
+                }
+                Token::LessThan => {
+                    self.tokens.next();
+                    let rhs = self.add();
+                    tree = Tree::BinOp(Op::LessThan, Box::new(tree), Box::new(rhs));
+                }
+                Token::LessThanOrEq => {
+                    self.tokens.next();
+                    let rhs = self.add();
+                    tree = Tree::BinOp(Op::LessThanOrEq, Box::new(tree), Box::new(rhs));
+                }
+                _ => break,
+            }
+        }
+
+        tree
+    }
+
+    fn add(&mut self) -> Tree {
         let mut tree = self.term();
         while let Some(token) = self.tokens.peek() {
             match token {
@@ -170,6 +232,42 @@ mod tests {
             tree,
             Tree::BinOp(
                 Op::Mul,
+                Box::new(Tree::BinOp(
+                    Op::Add,
+                    Box::new(Tree::Integer(1)),
+                    Box::new(Tree::Integer(2))
+                )),
+                Box::new(Tree::Integer(3))
+            )
+        );
+    }
+
+    #[test]
+    fn parse_relational_precedence() {
+        let mut parser = Parser::new(tokenize("1 + 2 > 3"));
+        let tree = parser.parse();
+        assert_eq!(
+            tree,
+            Tree::BinOp(
+                Op::GreaterThan,
+                Box::new(Tree::BinOp(
+                    Op::Add,
+                    Box::new(Tree::Integer(1)),
+                    Box::new(Tree::Integer(2))
+                )),
+                Box::new(Tree::Integer(3))
+            )
+        );
+    }
+
+    #[test]
+    fn parse_equality_precedence() {
+        let mut parser = Parser::new(tokenize("1 + 2 == 3"));
+        let tree = parser.parse();
+        assert_eq!(
+            tree,
+            Tree::BinOp(
+                Op::Eq,
                 Box::new(Tree::BinOp(
                     Op::Add,
                     Box::new(Tree::Integer(1)),

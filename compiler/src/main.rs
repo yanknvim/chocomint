@@ -1,6 +1,6 @@
+mod generator;
 mod parser;
 mod tokenizer;
-mod generator;
 
 use std::env;
 
