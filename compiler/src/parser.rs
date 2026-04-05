@@ -8,6 +8,7 @@ pub enum Tree {
     Integer(isize),
     Var(String),
     Assign(Box<Tree>, Box<Tree>),
+    Return(Box<Tree>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,7 +49,13 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Tree {
-        let tree = self.expr();
+        let tree = match self.tokens.peek() {
+            Some(Token::Return) => {
+                self.tokens.next();
+                Tree::Return(Box::new(self.expr()))
+            }
+            _ => self.expr()
+        };
 
         match self.tokens.peek() {
             Some(Token::Semicolon) => {

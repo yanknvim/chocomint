@@ -10,6 +10,8 @@ pub enum Token {
 
     Assign,
 
+    Return,
+
     Eq,
     NotEq,
     GreaterThan,
@@ -86,7 +88,10 @@ pub fn tokenize(s: &str) -> Vec<Token> {
                     s.next();
                     ident.push(c);
                 }
-                tokens.push(Token::Ident(ident));
+                match ident.as_str() {
+                    "return" => tokens.push(Token::Return),
+                    _ => tokens.push(Token::Ident(ident)),
+                }
             }
             _ => panic!("unexpected character: {}", c),
         }
@@ -206,6 +211,18 @@ mod tests {
                 Token::Ident("a".to_string()),
                 Token::Plus,
                 Token::Ident("b".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_return() {
+        let tokens = tokenize("return 5");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Return,
+                Token::Num(5),
             ]
         );
     }

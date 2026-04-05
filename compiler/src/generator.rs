@@ -108,6 +108,12 @@ impl Generator {
                 println!("  ld t0, {}(fp)", offset);
                 self.push("t0");
             }
+            Tree::Return(tree) => {
+                self.generate_tree(*tree);
+                self.pop("t0");
+                println!("  addi a0, t0, 0");
+                println!("  ret");
+            }
         }
     }
 
